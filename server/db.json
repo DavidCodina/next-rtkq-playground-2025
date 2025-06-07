@@ -1,0 +1,29 @@
+{
+  "contacts": [
+    {
+      "name": "DaveMan",
+      "phone": "333-333-3333",
+      "id": 1
+    },
+    {
+      "name": "Punkin",
+      "phone": "555-eat-food",
+      "id": 2
+    },
+    {
+      "name": "Muffy",
+      "phone": "303-532-78xx",
+      "id": 3
+    },
+    {
+      "name": "Holly",
+      "phone": "555-444-3322",
+      "id": 4
+    },
+    {
+      "name": "Gingerbread",
+      "phone": "555-444-3322",
+      "id": 5
+    }
+  ]
+}
