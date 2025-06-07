@@ -344,6 +344,9 @@ export const contactsApi = api.injectEndpoints({
         }
       },
 
+      //# This is an optimistic update, but I would also like to create a pessimistic update example.
+      //# https://redux-toolkit.js.org/rtk-query/usage/manual-cache-updates#pessimistic-updates
+      // https://redux-toolkit.js.org/rtk-query/usage/manual-cache-updates
       async onQueryStarted(
         queryArgument, // The data passed to the mutation (e.g., { name: 'John Doe', phone: '123-456-7890' })
 
@@ -358,42 +361,81 @@ export const contactsApi = api.injectEndpoints({
 
         const optimisticContact: Contact = { id: tempId, ...queryArgument }
 
+        ///////////////////////////////////////////////////////////////////////////
+        //
         // Optimistically update the 'getContacts' cache
+        //
+        // https://redux-toolkit.js.org/rtk-query/api/created-api/api-slice-utils#description
+        // The thunk returns an object (i.e., patchResult) containing {patches: Patch[], inversePatches: Patch[], undo: () => void}.
+        // The patches and inversePatches are generated using Immer's produceWithPatches method.
+        //
+        // This is typically used as the first step in implementing optimistic updates. The generated
+        // inversePatches can be used to revert the updates by calling dispatch(patchQueryData(endpointName, arg, inversePatches)).
+        // Alternatively, the undo method can be called directly to achieve the same effect.
+        //
+        // Note that the first two arguments (endpointName and arg) are used to determine which existing cache
+        // entry to update. If no existing cache entry is found, the updateRecipe callback will not run.
+        //
+        ///////////////////////////////////////////////////////////////////////////
         const patchResult = dispatch(
+          // https://redux-toolkit.js.org/rtk-query/api/created-api/api-slice-utils#updatequerydata
           contactsApi.util.updateQueryData(
+            // endpointName: a string matching an existing endpoint name
             'getContacts',
+            // arg: an argument matching that used for a previous query call, used to determine which cached
+            // dataset needs to be updated. However, getContacts() doesn't take an arg, so we pass undefined
+            // as a placeholder.
             undefined,
+            // updateRecipe: an Immer produce callback that can apply changes to the cached state
+            // This is the function that actually updates the cache. The callback receives an
+            // Immer-wrapped draft of the current state, and may modify the draft to match the
+            // expected results after the mutation completes successfully.
             (draft) => {
               draft.push(optimisticContact)
             }
+            // updateProvided: A boolean indicating whether the endpoint's provided tags
+            // should be re-calculated based on the updated cache. Defaults to false.
           )
         )
 
         try {
-          // Wait for the actual API call to complete
-          const { data: realContact } = await queryFulfilled
+          const { data: _realContact } = await queryFulfilled
 
-          // If the API call is successful, update the optimistic entry with the real data
-          dispatch(
-            contactsApi.util.updateQueryData(
-              'getContacts',
-              undefined,
-              (draft) => {
-                // Find the optimistic entry by its temporary ID and replace it
-                const index = draft.findIndex(
-                  (contact) => contact.id === tempId
-                )
-                if (index !== -1) {
-                  draft[index] = realContact
-                }
-              }
-            )
-          )
-        } catch (error) {
-          // If the API call fails, revert the optimistic update
+          ///////////////////////////////////////////////////////////////////////////
+          //
+          // Optional: If the API call is successful, update the optimistic entry with the real data.
+          // Currently, this would be a redundant operation. invalidatesTags already runs after
+          // a successful mutation, so RTKQ will automatically invalidate { type: 'Contacts', id: 'LIST' }
+          //
+          // The only scenario where the manual update makes sense is if you want to avoid the
+          // refetch network call entirely. In that case, you'd:
+          //
+          //   1. Keep the manual cache update in the try block
+          //   2. Remove invalidatesTags to prevent the refetch
+          //   3. Trust that your server response contains the complete, accurate contact data.
+          //
+          ///////////////////////////////////////////////////////////////////////////
+
+          // dispatch(
+          //   contactsApi.util.updateQueryData('getContacts',undefined, (draft) => {
+          //     // Find the optimistic entry by its temporary ID and replace it
+          //     const index = draft.findIndex((contact) => contact.id === tempId)
+          //     if (index !== -1) { draft[index] = realContact }
+          //   })
+          // )
+        } catch (_err) {
+          ///////////////////////////////////////////////////////////////////////////
+          //
+          // https://redux-toolkit.js.org/rtk-query/usage/manual-cache-updates#optimistic-updates
+          // Where many mutations are potentially triggered in short succession causing overlapping
+          // requests, you may encounter race conditions if attempting to roll back patches using
+          // the .undo property on failures. For these scenarios, it is often simplest and safest
+          // to invalidate the tags on error instead, and re-fetch truly up-to-date data from the server.
+          //
+          ///////////////////////////////////////////////////////////////////////////
           patchResult.undo()
           // Optionally, you might want to show an error message to the user
-          console.log('\nFailed to add contact:', error)
+          // console.log('\nFailed to add contact:', err)
         }
       },
 
@@ -440,13 +482,16 @@ export const contactsApi = api.injectEndpoints({
       // https://egghead.io/lessons/redux-undo-an-optimistic-update-in-rtk-query-with-queryfulfilled
 
       async onQueryStarted(id, { dispatch /*, queryFulfilled */ }) {
-        const _result = dispatch(
+        const _patchResult = dispatch(
           // Gotcha: When code-splitting with injected endpoints, use the name of the
           // extended API slice here. In other words, use contactsApi.util.updateQueryData
           // and NOT api.util.updateQueryData
+
           contactsApi.util.updateQueryData(
             'getContacts',
+
             undefined,
+
             (contactsDraft) => {
               ///////////////////////////////////////////////////////////////////////////
               //
@@ -486,8 +531,6 @@ export const contactsApi = api.injectEndpoints({
             }
           )
         )
-
-        // console.log('result: ', result) // => { inversePatches, patches, undo }
 
         ///////////////////////////////////////////////////////////////////////////
         //
