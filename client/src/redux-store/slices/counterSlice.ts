@@ -1,4 +1,9 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import {
+  createSlice,
+  PayloadAction
+  // createReducer
+  // createAction
+} from '@reduxjs/toolkit'
 
 import { getRandom } from './getRandom'
 
@@ -7,7 +12,7 @@ type Value = number
 // Sometimes, this is called InitialState.
 // Don't do that because it shows up as InitialState everywhere when consumed.
 // ❌ interface InitialState { value: Value }
-type CounterState = {
+export type CounterState = {
   value: Value
 }
 
