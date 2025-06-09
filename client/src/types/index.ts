@@ -13,7 +13,7 @@ export type Code =
   | 'INSUFFICIENT_QUESTIONS'
 
 export type ResBody<DataType> = {
-  code?: Code
+  code: Code
   data: DataType
   message: string
   success: boolean

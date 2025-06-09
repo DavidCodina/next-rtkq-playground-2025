@@ -1,18 +1,19 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
-import { ResBody } from '@/types'
+import { /* ResBody, */ ResponsePromise } from '@/types'
 import { sleep } from '@/utils'
 
 type Arg = void
 type RandomData = { test: string } | null
-type GetRandomResponse = ResBody<RandomData>
+type GetRandomResponsePromise = ResponsePromise<RandomData>
+type GetRandomResolvedResponse = Awaited<GetRandomResponsePromise> // => ResBody<RandomData>
 
 /* ========================================================================
                           
 ======================================================================== */
 
-export const getRandom = createAsyncThunk<GetRandomResponse, Arg>(
+export const getRandom = createAsyncThunk<GetRandomResolvedResponse, Arg>(
   'counter/getRandom',
-  async (_arg, _thunkAPI) => {
+  async (_arg, _thunkAPI): GetRandomResponsePromise => {
     try {
       await sleep(3000)
       return {
